@@ -70,13 +70,13 @@ leetcode-prototype/
     }
   ],
   "test_cases": [
-    {"input": {"nums": [2, 7, 11, 15], "target": 9}, "expected": [0, 1]},
-    {"input": {"nums": [3, 2, 4], "target": 6}, "expected": [1, 2]},
-    {"input": {"nums": [3, 3], "target": 6}, "expected": [0, 1]},
-    {"input": {"nums": [1, 5, 3, 7, 2], "target": 8}, "expected": [1, 2]},
-    {"input": {"nums": [-1, -2, -3, -4, -5], "target": -8}, "expected": [2, 4]},
-    {"input": {"nums": [0, 4, 3, 0], "target": 0}, "expected": [0, 3]},
-    {"input": {"nums": [1, 2], "target": 3}, "expected": [0, 1]}
+    {"input": {"nums": [2, 7, 11, 15], "target": 9}, "expected": [0, 1], "description": "базовый случай из примера"},
+    {"input": {"nums": [3, 2, 4], "target": 6}, "expected": [1, 2], "description": "ответ не в начале массива"},
+    {"input": {"nums": [3, 3], "target": 6}, "expected": [0, 1], "description": "одинаковые элементы"},
+    {"input": {"nums": [1, 5, 3, 7, 2], "target": 8}, "expected": [1, 2], "description": "несколько элементов"},
+    {"input": {"nums": [-1, -2, -3, -4, -5], "target": -8}, "expected": [2, 4], "description": "отрицательные числа"},
+    {"input": {"nums": [0, 4, 3, 0], "target": 0}, "expected": [0, 3], "description": "нули в массиве"},
+    {"input": {"nums": [1, 2], "target": 3}, "expected": [0, 1], "description": "минимальный массив"}
   ],
   "python3": {
     "function_signature": "def two_sum(nums: list[int], target: int) -> list[int]:",

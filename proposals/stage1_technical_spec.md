@@ -39,7 +39,7 @@ $ python main.py
 
 ────────────────────────────────────────
 
-Введите ваше решение (пустая строка + Enter для завершения):
+Введите решение (двойной Enter для завершения, !hint для подсказки):
 >>> def two_sum(nums, target):
 >>>     seen = {}
 >>>     for i, num in enumerate(nums):
@@ -47,6 +47,7 @@ $ python main.py
 >>>             return [seen[target - num], i]
 >>>         seen[num] = i
 >>>     return []
+>>>
 >>>
 
 Проверка решения...
@@ -75,11 +76,12 @@ $ python main.py
 leetcode-prototype/
 ├── main.py                 # Точка входа, главный цикл приложения
 ├── task_loader.py          # Загрузка и парсинг JSON-файлов задач
+├── task_validator.py       # Валидация JSON-схемы и проверка решений
 ├── selector.py             # Отображение списка и выбор задачи
 ├── presenter.py            # Форматирование и вывод задачи пользователю
 ├── input_handler.py        # Приём многострочного кода от пользователя
-├── executor.py             # Выполнение пользовательского кода
-├── validator.py            # Запуск тестов и сравнение результатов
+├── executor.py             # Выполнение пользовательского кода (multiprocessing)
+├── solution_validator.py   # Запуск тестов и сравнение результатов
 ├── result_reporter.py      # Форматирование и вывод результатов
 ├── config.py               # Константы и настройки
 ├── models.py               # Dataclass-модели данных
@@ -126,6 +128,7 @@ class TestCase:
     """Тест-кейс для проверки решения."""
     input: dict[str, Any]
     expected: Any
+    description: str | None = None  # Описание теста (например, "отрицательные числа")
 
 
 @dataclass
@@ -579,41 +582,81 @@ def present_task(task: Task, language: str = "python3") -> None:
 
 ### 5.4. input_handler.py — Ввод кода пользователя
 
-**Назначение:** Приём многострочного кода от пользователя через stdin.
+**Назначение:** Приём многострочного кода от пользователя через stdin с поддержкой специальных команд.
 
 ```python
 """
 Модуль обработки пользовательского ввода.
 
 Функции:
-- read_user_code() -> str
+- read_user_code(task, previous_code) -> InputResult
 - read_code_from_file(filepath) -> str
 - validate_code_syntax(code) -> tuple[bool, str | None]
+- parse_signature_args(signature) -> list[str]
+
+Специальные команды во время ввода:
+- !hint    — показать подсказку (каноническое решение)
+- !reset   — очистить введённый код и начать заново
+- !cancel  — отменить ввод и вернуться к выбору задачи
 """
 
 from pathlib import Path
+from dataclasses import dataclass
+from models import Task
 
 
-def read_user_code(prompt: str = "Введите ваше решение") -> str:
+@dataclass
+class InputResult:
+    """Результат ввода кода пользователем."""
+    code: str | None
+    cancelled: bool = False
+    hint_requested: bool = False
+
+
+def read_user_code(
+    task: Task,
+    previous_code: str | None = None,
+    language: str = "python3"
+) -> InputResult:
     """
     Читает многострочный код от пользователя.
 
-    Ввод завершается пустой строкой.
+    Ввод завершается двумя пустыми строками подряд (двойной Enter).
+    Поддерживает специальные команды: !hint, !reset, !cancel.
 
     Args:
-        prompt: Текст приглашения.
+        task: Текущая задача (для показа подсказок).
+        previous_code: Предыдущий код (для редактирования после ошибки).
+        language: Язык программирования.
 
     Returns:
-        Введённый код как единая строка.
+        InputResult с кодом или флагами состояния.
 
     Example:
-        >>> code = read_user_code()
-        Введите ваше решение (пустая строка + Enter для завершения):
+        >>> result = read_user_code(task, previous_code="def foo(): pass")
+        Введите решение (двойной Enter для завершения, !hint для подсказки):
+
+        Предыдущий код (редактируйте или введите новый):
+        ┌──────────────────────────────────────
+        │ def foo(): pass
+        └──────────────────────────────────────
+
         >>> def two_sum(nums, target):
-        >>>     return [0, 1]
+        >>>     seen = {}
+        >>>     for i, num in enumerate(nums):
+        >>>         if target - num in seen:
+        >>>             return [seen[target - num], i]
+        >>>         seen[num] = i
+        >>>     return []
         >>>
-        >>> code
-        "def two_sum(nums, target):\n    return [0, 1]"
+        >>>
+        >>> result.code
+        "def two_sum(nums, target):\n    ..."
+
+    Note:
+        - Одна пустая строка допустима внутри кода
+        - Две пустые строки подряд завершают ввод
+        - !hint показывает следующую подсказку из solutions
     """
     ...
 
@@ -671,26 +714,74 @@ def extract_function_name(code: str) -> str | None:
         "my_func"
     """
     ...
+
+
+def parse_signature_args(signature: str) -> list[str]:
+    """
+    Извлекает имена аргументов из сигнатуры функции.
+
+    Args:
+        signature: Сигнатура функции Python.
+
+    Returns:
+        Список имён аргументов в порядке их определения.
+
+    Example:
+        >>> parse_signature_args("def two_sum(nums: list[int], target: int) -> list[int]:")
+        ["nums", "target"]
+
+        >>> parse_signature_args("def solve(matrix, k, threshold=0.5):")
+        ["matrix", "k", "threshold"]
+
+    Note:
+        Используется для правильного порядка передачи аргументов
+        из test_case.input в вызов функции.
+    """
+    ...
+
+
+def show_hint(task: Task, hint_index: int, language: str = "python3") -> int:
+    """
+    Показывает подсказку (каноническое решение) пользователю.
+
+    Args:
+        task: Текущая задача.
+        hint_index: Индекс текущей подсказки (0, 1, 2...).
+        language: Язык программирования.
+
+    Returns:
+        Новый hint_index (для следующей подсказки).
+
+    Note:
+        Показывает решения по порядку: сначала простое (Brute Force),
+        потом оптимальное. Предупреждает перед показом.
+    """
+    ...
 ```
 
 ---
 
 ### 5.5. executor.py — Выполнение кода
 
-**Назначение:** Безопасное выполнение пользовательского кода с ограничениями.
+**Назначение:** Безопасное выполнение пользовательского кода с ограничениями через multiprocessing.
 
 ```python
 """
 Модуль выполнения пользовательского кода.
 
+Использует multiprocessing для надёжного таймаута и изоляции.
+Работает на всех платформах (Unix, Windows, macOS).
+
 Функции:
-- execute_code(code, function_name, args) -> ExecutionOutput
+- execute_code(code, function_name, args, arg_order, timeout) -> ExecutionOutput
 - create_sandbox_globals() -> dict
-- run_with_timeout(func, args, timeout) -> Any
+- run_in_process(code, function_name, args, arg_order, result_queue) -> None
 """
 
+import multiprocessing as mp
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
+from queue import Empty
 
 
 @dataclass
@@ -712,28 +803,32 @@ def create_sandbox_globals() -> dict:
 
     Note:
         Исключает: open, exec, eval, __import__, compile и др.
-        Включает: len, range, enumerate, zip, map, filter, sorted, etc.
+        Включает: len, range, enumerate, zip, map, filter, sorted,
+                  min, max, sum, abs, all, any, reversed, etc.
     """
     ...
 
 
-def run_with_timeout(func: Callable, args: tuple, timeout: float) -> Any:
+def run_in_process(
+    code: str,
+    function_name: str,
+    args: dict[str, Any],
+    arg_order: list[str],
+    result_queue: mp.Queue
+) -> None:
     """
-    Выполняет функцию с ограничением по времени.
+    Выполняет код в отдельном процессе (worker function).
 
     Args:
-        func: Функция для выполнения.
-        args: Аргументы функции.
-        timeout: Максимальное время в секундах.
-
-    Returns:
-        Результат выполнения функции.
-
-    Raises:
-        TimeoutError: Превышен лимит времени.
+        code: Пользовательский Python-код.
+        function_name: Имя функции для вызова.
+        args: Аргументы функции (словарь).
+        arg_order: Порядок аргументов (из сигнатуры).
+        result_queue: Очередь для возврата результата.
 
     Note:
-        Использует signal.alarm на Unix или threading.Timer.
+        Эта функция запускается в дочернем процессе.
+        Результат или ошибка передаётся через Queue.
     """
     ...
 
@@ -742,15 +837,20 @@ def execute_code(
     code: str,
     function_name: str,
     args: dict[str, Any],
+    arg_order: list[str],
     timeout: float = 5.0
 ) -> ExecutionOutput:
     """
     Выполняет пользовательский код и вызывает функцию.
 
+    Создаёт отдельный процесс, выполняет код, ждёт результат.
+    При превышении таймаута — убивает процесс через terminate().
+
     Args:
         code: Пользовательский Python-код.
         function_name: Имя функции для вызова.
-        args: Аргументы функции (именованные).
+        args: Аргументы функции (словарь).
+        arg_order: Порядок аргументов (из parse_signature_args).
         timeout: Лимит времени на выполнение.
 
     Returns:
@@ -760,7 +860,8 @@ def execute_code(
         >>> result = execute_code(
         ...     code="def add(a, b): return a + b",
         ...     function_name="add",
-        ...     args={"a": 2, "b": 3}
+        ...     args={"a": 2, "b": 3},
+        ...     arg_order=["a", "b"]
         ... )
         >>> result.success
         True
@@ -768,8 +869,9 @@ def execute_code(
         5
 
     Note:
-        Перехватывает все исключения: SyntaxError, NameError,
-        TypeError, TimeoutError и др.
+        - Использует multiprocessing.Process для изоляции
+        - Process.terminate() надёжно убивает зависший код
+        - Работает на всех платформах
     """
     ...
 
@@ -793,21 +895,22 @@ def prepare_arguments(test_input: dict[str, Any]) -> dict[str, Any]:
 
 ---
 
-### 5.6. validator.py — Валидация решений
+### 5.6. solution_validator.py — Валидация решений
 
 **Назначение:** Запуск тестов и сравнение результатов с ожидаемыми.
 
 ```python
 """
-Модуль валидации решений.
+Модуль валидации пользовательских решений.
 
 Функции:
 - validate_solution(code, task) -> ExecutionResult
-- run_single_test(code, function_name, test_case, test_number) -> TestResult
+- run_single_test(code, function_name, test_case, test_number, arg_order) -> TestResult
 - compare_results(actual, expected) -> bool
 """
 
 from models import Task, TestCase, TestResult, ExecutionResult, TestStatus
+from input_handler import parse_signature_args
 
 
 def compare_results(actual: Any, expected: Any) -> bool:
@@ -881,7 +984,191 @@ def validate_solution(
 
 ---
 
-### 5.7. result_reporter.py — Отображение результатов
+### 5.7. task_validator.py — Валидация задач
+
+**Назначение:** Валидация JSON-схемы файлов задач и проверка канонических решений на тестах. Используется при добавлении новых задач в систему.
+
+```python
+"""
+Модуль валидации файлов задач.
+
+Два режима работы:
+1. Валидация схемы JSON — проверка структуры и обязательных полей
+2. Валидация решений — проверка канонических решений на тестах
+
+Функции:
+- validate_task_file(filepath) -> ValidationResult
+- validate_task_schema(data) -> list[str]
+- validate_solutions(task) -> list[SolutionValidationResult]
+- validate_all_tasks(directory) -> list[ValidationResult]
+
+CLI:
+    python task_validator.py tasks/1_two_sum.json     # одна задача
+    python task_validator.py tasks/                    # все задачи
+    python task_validator.py --schema-only tasks/     # только схема
+"""
+
+from pathlib import Path
+from dataclasses import dataclass, field
+
+
+@dataclass
+class SolutionValidationResult:
+    """Результат валидации одного решения."""
+    solution_name: str
+    passed: bool
+    passed_tests: int
+    total_tests: int
+    error: str | None = None
+
+
+@dataclass
+class ValidationResult:
+    """Результат валидации файла задачи."""
+    filepath: Path
+    valid: bool
+    schema_errors: list[str] = field(default_factory=list)
+    solution_results: list[SolutionValidationResult] = field(default_factory=list)
+
+
+# Схема обязательных полей JSON
+REQUIRED_FIELDS = {
+    "root": ["id", "title", "difficulty", "tags", "description", "examples", "test_cases"],
+    "example": ["input", "output"],
+    "test_case": ["input", "expected"],
+    "language_spec": ["function_signature", "solutions"],
+    "solution": ["name", "complexity", "code"]
+}
+
+VALID_DIFFICULTIES = ["easy", "medium", "hard"]
+
+
+def validate_task_schema(data: dict) -> list[str]:
+    """
+    Проверяет структуру JSON на соответствие схеме.
+
+    Args:
+        data: Загруженные данные задачи.
+
+    Returns:
+        Список ошибок (пустой если всё ок).
+
+    Example:
+        >>> errors = validate_task_schema({"id": 1, "title": "Test"})
+        >>> errors
+        ["Отсутствует обязательное поле: difficulty",
+         "Отсутствует обязательное поле: tags", ...]
+    """
+    ...
+
+
+def validate_solution_code(task: "Task", solution: "Solution") -> SolutionValidationResult:
+    """
+    Проверяет одно каноническое решение на всех тестах.
+
+    Args:
+        task: Объект задачи.
+        solution: Каноническое решение для проверки.
+
+    Returns:
+        SolutionValidationResult с результатами.
+
+    Note:
+        Использует solution_validator.validate_solution внутри.
+    """
+    ...
+
+
+def validate_solutions(task: "Task", language: str = "python3") -> list[SolutionValidationResult]:
+    """
+    Проверяет все канонические решения задачи.
+
+    Args:
+        task: Объект задачи.
+        language: Язык программирования.
+
+    Returns:
+        Список результатов для каждого решения.
+    """
+    ...
+
+
+def validate_task_file(
+    filepath: Path,
+    check_solutions: bool = True
+) -> ValidationResult:
+    """
+    Полная валидация файла задачи.
+
+    Args:
+        filepath: Путь к JSON-файлу.
+        check_solutions: Проверять ли решения на тестах.
+
+    Returns:
+        ValidationResult с полной информацией.
+
+    Example:
+        >>> result = validate_task_file(Path("tasks/1_two_sum.json"))
+        >>> result.valid
+        True
+        >>> result.solution_results[0].passed
+        True
+    """
+    ...
+
+
+def validate_all_tasks(
+    directory: Path,
+    check_solutions: bool = True
+) -> list[ValidationResult]:
+    """
+    Валидирует все задачи в директории.
+
+    Args:
+        directory: Путь к директории с задачами.
+        check_solutions: Проверять ли решения.
+
+    Returns:
+        Список ValidationResult для каждого файла.
+    """
+    ...
+
+
+def print_validation_report(results: list[ValidationResult]) -> None:
+    """
+    Выводит отчёт о валидации в консоль.
+
+    Формат вывода:
+        Валидация задач
+        ════════════════════════════════════════
+
+        ✓ tasks/1_two_sum.json
+          Схема: OK
+          Решения:
+            ✓ Brute Force: 7/7 тестов
+            ✓ Hash Map (один проход): 7/7 тестов
+            ✓ Hash Map (два прохода): 7/7 тестов
+
+        ✗ tasks/2_broken.json
+          Схема: 2 ошибки
+            - Отсутствует поле: python3.function_signature
+            - Неверное значение difficulty: "super-hard"
+
+        ════════════════════════════════════════
+        Итого: 2/3 задач валидны
+    """
+    ...
+
+
+if __name__ == "__main__":
+    # CLI интерфейс для валидации
+    import argparse
+    ...
+```
+
+---
+
+### 5.8. result_reporter.py — Отображение результатов
 
 **Назначение:** Форматирование и вывод результатов проверки.
 
@@ -974,7 +1261,7 @@ def report_results(result: ExecutionResult, verbose: bool = False) -> None:
 
 ---
 
-### 5.8. main.py — Главный модуль
+### 5.9. main.py — Главный модуль
 
 **Назначение:** Точка входа, главный цикл приложения.
 
@@ -1000,7 +1287,7 @@ from task_loader import load_all_tasks
 from selector import select_task
 from presenter import present_task
 from input_handler import read_user_code, read_code_from_file, validate_code_syntax
-from validator import validate_solution
+from solution_validator import validate_solution
 from result_reporter import report_results
 
 
@@ -1103,13 +1390,13 @@ if __name__ == "__main__":
 ## 6. Диаграмма взаимодействия модулей
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              main.py                                     │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│  │ parse_args  │───►│main_loop    │───►│run_solve_   │                  │
-│  └─────────────┘    └─────────────┘    │   flow      │                  │
-│                                         └──────┬──────┘                  │
-└────────────────────────────────────────────────┼─────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                  main.py                                      │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                       │
+│  │ parse_args  │───►│main_loop    │───►│run_solve_   │                       │
+│  └─────────────┘    └─────────────┘    │   flow      │                       │
+│                                         └──────┬──────┘                       │
+└────────────────────────────────────────────────┼──────────────────────────────┘
                                                  │
          ┌───────────────┬───────────────────────┼───────────────────────┐
          │               │                       │                       │
@@ -1119,17 +1406,18 @@ if __name__ == "__main__":
 │             │  │             │        │             │         │             │
 │load_all_    │  │select_task  │        │present_task │         │read_user_   │
 │  tasks()    │  │display_list │        │format_*     │         │  code()     │
-└──────┬──────┘  └─────────────┘        └─────────────┘         └──────┬──────┘
-       │                                                                │
-       │         ┌──────────────────────────────────────────────────────┘
+└──────┬──────┘  └─────────────┘        └─────────────┘         │parse_sig_   │
+       │                                                         │  args()     │
+       │                                                         │show_hint()  │
+       │         ┌──────────────────────────────────────────────┴─────────────┘
        │         │
        ▼         ▼
 ┌─────────────────────┐         ┌─────────────────────┐
-│     validator       │────────►│     executor        │
+│ solution_validator  │────────►│     executor        │
 │                     │         │                     │
 │ validate_solution() │         │ execute_code()      │
-│ run_single_test()   │         │ run_with_timeout()  │
-│ compare_results()   │         │ create_sandbox()    │
+│ run_single_test()   │         │ run_in_process()    │
+│ compare_results()   │         │ (multiprocessing)   │
 └──────────┬──────────┘         └─────────────────────┘
            │
            ▼
@@ -1140,13 +1428,24 @@ if __name__ == "__main__":
 │ format_summary()    │
 └─────────────────────┘
 
+
 ┌─────────────────────┐         ┌─────────────────────┐
-│     models.py       │         │     config.py       │
-│                     │         │                     │
-│ Task, TestCase,     │         │ TASKS_DIR,          │
-│ TestResult,         │         │ EXECUTION_TIMEOUT,  │
-│ ExecutionResult     │         │ Colors              │
+│  task_validator     │         │     config.py       │
+│  (standalone CLI)   │         │                     │
+│                     │         │ TASKS_DIR,          │
+│ validate_task_file()│         │ EXECUTION_TIMEOUT,  │
+│ validate_schema()   │         │ Colors              │
+│ validate_solutions()│         │                     │
 └─────────────────────┘         └─────────────────────┘
+
+┌─────────────────────┐
+│     models.py       │
+│                     │
+│ Task, TestCase,     │
+│ TestResult,         │
+│ ExecutionResult,    │
+│ InputResult         │
+└─────────────────────┘
 ```
 
 ---
@@ -1311,15 +1610,31 @@ def get_user_stats(user_id: str) -> dict:
 
 ## 10. Критерии приёмки
 
-- [ ] Все модули реализованы согласно спецификации
+### Основной функционал
 - [ ] CLI запускается и показывает список задач
 - [ ] Выбор задачи работает (включая случайную)
 - [ ] Условие задачи отображается корректно
-- [ ] Многострочный ввод кода работает
+- [ ] Многострочный ввод кода работает (двойной Enter для завершения)
 - [ ] Синтаксические ошибки перехватываются до выполнения
 - [ ] Тесты выполняются последовательно
-- [ ] Таймаут срабатывает корректно
+- [ ] Таймаут срабатывает корректно (multiprocessing)
 - [ ] Результаты отображаются понятно
 - [ ] Программа корректно завершается по Ctrl+C
+
+### Новые функции
+- [ ] Команда `!hint` показывает канонические решения
+- [ ] После ошибки показывается предыдущий код для редактирования
+- [ ] Парсинг сигнатуры корректно определяет порядок аргументов
+- [ ] Команды `!reset` и `!cancel` работают
+
+### Валидатор задач
+- [ ] `python task_validator.py tasks/` валидирует все задачи
+- [ ] Валидация схемы JSON выявляет отсутствующие поля
+- [ ] Валидация решений проверяет канонические решения на тестах
+- [ ] Отчёт о валидации выводится в понятном формате
+
+### Качество кода
+- [ ] Все модули реализованы согласно спецификации
 - [ ] Код соответствует PEP 8
 - [ ] Все функции имеют docstrings
+- [ ] Type hints используются везде
