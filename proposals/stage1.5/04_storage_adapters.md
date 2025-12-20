@@ -444,7 +444,245 @@ class JsonDraftRepository(JsonStorageBase[Draft]):
         return tuple(sorted(drafts, key=lambda d: d.updated_at, reverse=True))
 ```
 
-### 4.5. Обновить adapters/storage/__init__.py
+### 4.5. Создать JsonSubmissionRepository
+
+```python
+# adapters/storage/json_submission_repository.py
+"""JSON implementation of ISubmissionRepository."""
+from pathlib import Path
+from datetime import datetime
+
+from core.domain.models import Submission
+from core.domain.enums import Language
+from core.domain.result import Ok, Err, Result
+from core.domain.errors import NotFoundError, StorageError
+from core.ports.repositories import ISubmissionRepository
+
+from .json_base import JsonStorageBase
+
+
+class JsonSubmissionRepository(JsonStorageBase[Submission]):
+    """JSON file-based submission repository."""
+
+    def __init__(self, submissions_path: Path):
+        super().__init__(submissions_path)
+
+    def _submission_file(self, submission_id: str) -> Path:
+        return self.base_path / f"{submission_id}.json"
+
+    def _user_dir(self, user_id: str) -> Path:
+        return self.base_path / user_id
+
+    def _parse_submission(self, data: dict) -> Submission:
+        return Submission(
+            id=data["id"],
+            user_id=data["user_id"],
+            problem_id=data["problem_id"],
+            language=Language(data["language"]),
+            code=data["code"],
+            execution_time_ms=data["execution_time_ms"],
+            memory_used_kb=data.get("memory_used_kb", 0),
+            created_at=datetime.fromisoformat(data["created_at"]),
+        )
+
+    def _serialize_submission(self, submission: Submission) -> dict:
+        return {
+            "id": submission.id,
+            "user_id": submission.user_id,
+            "problem_id": submission.problem_id,
+            "language": submission.language.value,
+            "code": submission.code,
+            "execution_time_ms": submission.execution_time_ms,
+            "memory_used_kb": submission.memory_used_kb,
+            "created_at": submission.created_at.isoformat(),
+        }
+
+    def get_by_id(self, submission_id: str) -> Result[Submission, NotFoundError]:
+        """Get submission by ID."""
+        # Search in all user directories
+        for user_dir in self.base_path.iterdir():
+            if user_dir.is_dir():
+                file_path = user_dir / f"{submission_id}.json"
+                if file_path.exists():
+                    result = self._read_json(file_path)
+                    if result.is_ok():
+                        return Ok(self._parse_submission(result.value))
+
+        return Err(NotFoundError(
+            message=f"Submission {submission_id} not found",
+            entity="Submission",
+            id=submission_id,
+        ))
+
+    def save(self, submission: Submission) -> Result[Submission, StorageError]:
+        """Save new submission."""
+        user_dir = self._user_dir(submission.user_id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+
+        file_path = user_dir / f"{submission.id}.json"
+        data = self._serialize_submission(submission)
+
+        result = self._write_json(file_path, data)
+        match result:
+            case Ok(_):
+                return Ok(submission)
+            case Err(e):
+                return Err(e)
+
+    def get_for_problem(
+        self,
+        user_id: str,
+        problem_id: int,
+    ) -> tuple[Submission, ...]:
+        """Get all submissions for user/problem."""
+        user_dir = self._user_dir(user_id)
+        if not user_dir.exists():
+            return ()
+
+        submissions = []
+        for file_path in user_dir.glob("*.json"):
+            result = self._read_json(file_path)
+            if result.is_ok():
+                submission = self._parse_submission(result.value)
+                if submission.problem_id == problem_id:
+                    submissions.append(submission)
+
+        return tuple(sorted(submissions, key=lambda s: s.created_at, reverse=True))
+
+    def get_for_user(self, user_id: str) -> tuple[Submission, ...]:
+        """Get all submissions for user."""
+        user_dir = self._user_dir(user_id)
+        if not user_dir.exists():
+            return ()
+
+        submissions = []
+        for file_path in user_dir.glob("*.json"):
+            result = self._read_json(file_path)
+            if result.is_ok():
+                submissions.append(self._parse_submission(result.value))
+
+        return tuple(sorted(submissions, key=lambda s: s.created_at, reverse=True))
+```
+
+### 4.6. Создать JsonProgressRepository
+
+```python
+# adapters/storage/json_progress_repository.py
+"""JSON implementation of IProgressRepository."""
+from pathlib import Path
+from datetime import datetime
+
+from core.domain.models import Progress
+from core.domain.enums import Difficulty, Language, ProgressStatus
+from core.domain.result import Ok, Err, Result
+from core.domain.errors import NotFoundError, StorageError
+from core.ports.repositories import IProgressRepository
+
+from .json_base import JsonStorageBase
+
+
+class JsonProgressRepository(JsonStorageBase[Progress]):
+    """JSON file-based progress repository."""
+
+    def __init__(self, progress_path: Path):
+        super().__init__(progress_path)
+
+    def _progress_file(self, user_id: str, problem_id: int) -> Path:
+        return self.base_path / user_id / f"{problem_id}.json"
+
+    def _parse_progress(self, data: dict) -> Progress:
+        solved_languages = tuple(
+            Language(lang) for lang in data.get("solved_languages", [])
+        )
+        first_solved_at = None
+        if data.get("first_solved_at"):
+            first_solved_at = datetime.fromisoformat(data["first_solved_at"])
+
+        return Progress(
+            user_id=data["user_id"],
+            problem_id=data["problem_id"],
+            status=ProgressStatus(data["status"]),
+            attempts=data.get("attempts", 0),
+            solved_languages=solved_languages,
+            first_solved_at=first_solved_at,
+        )
+
+    def _serialize_progress(self, progress: Progress) -> dict:
+        return {
+            "user_id": progress.user_id,
+            "problem_id": progress.problem_id,
+            "status": progress.status.value,
+            "attempts": progress.attempts,
+            "solved_languages": [lang.value for lang in progress.solved_languages],
+            "first_solved_at": progress.first_solved_at.isoformat()
+                if progress.first_solved_at else None,
+        }
+
+    def get(
+        self,
+        user_id: str,
+        problem_id: int,
+    ) -> Result[Progress, NotFoundError]:
+        """Get progress for user/problem."""
+        file_path = self._progress_file(user_id, problem_id)
+        result = self._read_json(file_path)
+        match result:
+            case Ok(data):
+                return Ok(self._parse_progress(data))
+            case Err(_):
+                return Err(NotFoundError(
+                    message=f"Progress not found",
+                    entity="Progress",
+                    id=f"{user_id}/{problem_id}",
+                ))
+
+    def save(self, progress: Progress) -> Result[Progress, StorageError]:
+        """Save progress."""
+        file_path = self._progress_file(progress.user_id, progress.problem_id)
+        data = self._serialize_progress(progress)
+        result = self._write_json(file_path, data)
+        match result:
+            case Ok(_):
+                return Ok(progress)
+            case Err(e):
+                return Err(e)
+
+    def get_all_for_user(self, user_id: str) -> tuple[Progress, ...]:
+        """Get all progress entries for user."""
+        user_dir = self.base_path / user_id
+        if not user_dir.exists():
+            return ()
+
+        progress_list = []
+        for file_path in user_dir.glob("*.json"):
+            result = self._read_json(file_path)
+            if result.is_ok():
+                progress_list.append(self._parse_progress(result.value))
+
+        return tuple(sorted(progress_list, key=lambda p: p.problem_id))
+
+    def get_solved_count(self, user_id: str) -> int:
+        """Get number of solved problems for user."""
+        all_progress = self.get_all_for_user(user_id)
+        return sum(1 for p in all_progress if p.status == ProgressStatus.SOLVED)
+
+    def get_solved_by_difficulty(
+        self,
+        user_id: str,
+    ) -> dict[Difficulty, int]:
+        """
+        Get solved count grouped by difficulty.
+
+        Note: This requires knowing problem difficulties, which means
+        we need access to problem repository. For now, returns empty dict.
+        This method should be implemented at the service level instead.
+        """
+        # This is a limitation of the repository pattern - cross-aggregate queries
+        # should be handled at the service level
+        return {d: 0 for d in Difficulty}
+```
+
+### 4.7. Обновить adapters/storage/__init__.py
 
 ```python
 # adapters/storage/__init__.py
@@ -452,13 +690,15 @@ class JsonDraftRepository(JsonStorageBase[Draft]):
 from .json_problem_repository import JsonProblemRepository
 from .json_user_repository import JsonUserRepository
 from .json_draft_repository import JsonDraftRepository
-# from .json_submission_repository import JsonSubmissionRepository  # TODO
-# from .json_progress_repository import JsonProgressRepository  # TODO
+from .json_submission_repository import JsonSubmissionRepository
+from .json_progress_repository import JsonProgressRepository
 
 __all__ = [
     "JsonProblemRepository",
     "JsonUserRepository",
     "JsonDraftRepository",
+    "JsonSubmissionRepository",
+    "JsonProgressRepository",
 ]
 ```
 
@@ -467,6 +707,8 @@ __all__ = [
 - [ ] JsonProblemRepository реализован и совместим с IProblemRepository
 - [ ] JsonUserRepository реализован
 - [ ] JsonDraftRepository реализован
+- [ ] JsonSubmissionRepository реализован
+- [ ] JsonProgressRepository реализован
 - [ ] Поддержка старого формата JSON (без i18n)
 - [ ] Тесты для всех репозиториев
 - [ ] mypy проходит
@@ -547,6 +789,104 @@ class TestJsonProblemRepository:
 
         assert len(result) == 1
         assert result[0].difficulty == Difficulty.EASY
+
+
+# tests/unit/adapters/storage/test_json_submission_repository.py
+import pytest
+from pathlib import Path
+import tempfile
+from datetime import datetime
+
+from adapters.storage.json_submission_repository import JsonSubmissionRepository
+from core.domain.models import Submission
+from core.domain.enums import Language
+
+
+@pytest.fixture
+def temp_submissions_dir():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
+
+
+@pytest.fixture
+def sample_submission():
+    return Submission(
+        id="sub_123",
+        user_id="user_1",
+        problem_id=1,
+        language=Language.PYTHON,
+        code="def solution(): pass",
+        execution_time_ms=42,
+        memory_used_kb=1024,
+        created_at=datetime.now(),
+    )
+
+
+class TestJsonSubmissionRepository:
+    def test_save_and_get_by_id(self, temp_submissions_dir, sample_submission):
+        repo = JsonSubmissionRepository(temp_submissions_dir)
+
+        save_result = repo.save(sample_submission)
+        assert save_result.is_ok()
+
+        get_result = repo.get_by_id(sample_submission.id)
+        assert get_result.is_ok()
+        assert get_result.unwrap().id == sample_submission.id
+
+    def test_get_for_user(self, temp_submissions_dir, sample_submission):
+        repo = JsonSubmissionRepository(temp_submissions_dir)
+        repo.save(sample_submission)
+
+        submissions = repo.get_for_user(sample_submission.user_id)
+
+        assert len(submissions) == 1
+        assert submissions[0].user_id == sample_submission.user_id
+
+
+# tests/unit/adapters/storage/test_json_progress_repository.py
+import pytest
+from pathlib import Path
+import tempfile
+
+from adapters.storage.json_progress_repository import JsonProgressRepository
+from core.domain.models import Progress
+from core.domain.enums import ProgressStatus, Language
+
+
+@pytest.fixture
+def temp_progress_dir():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
+
+
+@pytest.fixture
+def sample_progress():
+    return Progress(
+        user_id="user_1",
+        problem_id=1,
+        status=ProgressStatus.SOLVED,
+        attempts=3,
+        solved_languages=(Language.PYTHON,),
+    )
+
+
+class TestJsonProgressRepository:
+    def test_save_and_get(self, temp_progress_dir, sample_progress):
+        repo = JsonProgressRepository(temp_progress_dir)
+
+        save_result = repo.save(sample_progress)
+        assert save_result.is_ok()
+
+        get_result = repo.get(sample_progress.user_id, sample_progress.problem_id)
+        assert get_result.is_ok()
+        assert get_result.unwrap().status == ProgressStatus.SOLVED
+
+    def test_get_solved_count(self, temp_progress_dir, sample_progress):
+        repo = JsonProgressRepository(temp_progress_dir)
+        repo.save(sample_progress)
+
+        count = repo.get_solved_count(sample_progress.user_id)
+        assert count == 1
 ```
 
 ## Следующий шаг
