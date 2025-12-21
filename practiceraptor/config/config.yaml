@@ -1,0 +1,17 @@
+app:
+  name: PracticeRaptor
+  environment: development
+  default_locale: en
+
+storage:
+  type: json
+  json:
+    base_path: ./data
+
+executor:
+  type: local
+  timeout_sec: 5
+  memory_limit_mb: 256
+
+auth:
+  type: anonymous

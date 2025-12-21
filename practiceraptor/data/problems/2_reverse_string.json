@@ -1,0 +1,47 @@
+{
+  "id": 2,
+  "title": "Reverse String",
+  "difficulty": "easy",
+  "tags": ["string", "two-pointers"],
+  "description": "Напишите функцию, которая разворачивает строку. Входная строка представлена как массив символов s.\n\nВы должны сделать это, модифицируя входной массив in-place с O(1) дополнительной памяти.\n\nФункция должна вернуть развёрнутый массив.",
+  "examples": [
+    {
+      "input": {"s": ["h", "e", "l", "l", "o"]},
+      "output": ["o", "l", "l", "e", "h"],
+      "explanation": "Строка 'hello' становится 'olleh'"
+    },
+    {
+      "input": {"s": ["H", "a", "n", "n", "a", "h"]},
+      "output": ["h", "a", "n", "n", "a", "H"],
+      "explanation": "Строка 'Hannah' становится 'hannaH'"
+    }
+  ],
+  "test_cases": [
+    {"input": {"s": ["h", "e", "l", "l", "o"]}, "expected": ["o", "l", "l", "e", "h"], "description": "базовый случай"},
+    {"input": {"s": ["H", "a", "n", "n", "a", "h"]}, "expected": ["h", "a", "n", "n", "a", "H"], "description": "палиндром с разным регистром"},
+    {"input": {"s": ["a"]}, "expected": ["a"], "description": "один символ"},
+    {"input": {"s": ["a", "b"]}, "expected": ["b", "a"], "description": "два символа"},
+    {"input": {"s": ["A", " ", "m", "a", "n"]}, "expected": ["n", "a", "m", " ", "A"], "description": "с пробелом"},
+    {"input": {"s": ["1", "2", "3", "4", "5"]}, "expected": ["5", "4", "3", "2", "1"], "description": "цифры"}
+  ],
+  "python3": {
+    "function_signature": "def reverse_string(s: list[str]) -> list[str]:",
+    "solutions": [
+      {
+        "name": "Two Pointers",
+        "complexity": "O(n)",
+        "code": "def reverse_string(s: list[str]) -> list[str]:\n    left, right = 0, len(s) - 1\n    while left < right:\n        s[left], s[right] = s[right], s[left]\n        left += 1\n        right -= 1\n    return s"
+      },
+      {
+        "name": "Reverse с индексами",
+        "complexity": "O(n)",
+        "code": "def reverse_string(s: list[str]) -> list[str]:\n    n = len(s)\n    for i in range(n // 2):\n        s[i], s[n - 1 - i] = s[n - 1 - i], s[i]\n    return s"
+      },
+      {
+        "name": "Slice (Pythonic)",
+        "complexity": "O(n)",
+        "code": "def reverse_string(s: list[str]) -> list[str]:\n    s[:] = s[::-1]\n    return s"
+      }
+    ]
+  }
+}
