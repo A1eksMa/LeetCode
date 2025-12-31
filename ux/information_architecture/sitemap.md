@@ -161,20 +161,16 @@ flowchart LR
 
     end
 
-    LIST <-.->|всегда доступно| DETAILS
     LIST <-.->|всегда доступно| SOLVE
     LIST <-.->|всегда доступно| PROFILE
     LIST <-.->|всегда доступно| SETTINGS
     SOLVE <-.->|всегда доступно| LIST
-    SOLVE <-.->|всегда доступно| DETAILS
     SOLVE <-.->|всегда доступно| PROFILE
     SOLVE <-.->|всегда доступно| SETTINGS
     PROFILE <-.->|всегда доступно| LIST
-    PROFILE <-.->|всегда доступно| DETAILS
     PROFILE <-.->|всегда доступно| SOLVE
     PROFILE <-.->|всегда доступно| SETTINGS
     SETTINGS <-.->|всегда доступно| LIST
-    SETTINGS <-.->|всегда доступно| DETAILS
     SETTINGS <-.->|всегда доступно| SOLVE
     SETTINGS <-.->|всегда доступно| PROFILE
 ```
