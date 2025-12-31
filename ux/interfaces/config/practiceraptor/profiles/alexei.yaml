@@ -1,0 +1,17 @@
+
+# ~/.config/practiceraptor/profiles/alexei.yaml
+
+# Настройки, специфичные для пользователя при взаимодействии с платформой PracticeRaptor
+user_defaults:
+  default_language: "python3"
+  interface_language: "ru" # Alexei предпочитает русский язык
+  task_filters:
+    difficulty: "easy"      # Alexei фокусируется на легких задачах
+    tags: ["arrays"]
+    status: "unsolved"
+
+# Опционально: Переопределения настроек CLI для данного пользователя.
+cli_overrides:
+  theme: "dark"            # Alexei предпочитает темную тему
+  preferred_editor: "code" # Alexei использует VS Code
+  editor_args: ["--wait"]  # Важно дожидаться закрытия редактора

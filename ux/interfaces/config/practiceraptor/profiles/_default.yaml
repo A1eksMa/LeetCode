@@ -1,0 +1,14 @@
+
+# ~/.config/practiceraptor/profiles/_default.yaml
+
+# Настройки, специфичные для пользователя при взаимодействии с платформой PracticeRaptor
+user_defaults:
+  default_language: "python3"
+  interface_language: "en"
+  task_filters:
+    difficulty: "all"
+    tags: []
+    status: "all"
+
+# CLI overrides для анонимного пользователя (минимальные)
+cli_overrides: {}

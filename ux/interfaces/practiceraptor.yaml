@@ -1,0 +1,20 @@
+
+# ~/.practiceraptor.yaml
+
+# Настройки, непосредственно касающиеся работы CLI-инструмента 'pr'
+cli:
+  preferred_editor: "vim"
+  editor_args: []
+  theme: "default"
+  data_dir: "~/.config/practiceraptor/data"
+  log_level: "INFO"
+  auto_save_drafts: true
+
+# Определяет имя пользователя по умолчанию, если сессия не авторизована.
+default_username: "_default"
+
+# Каталог, где хранятся профили пользователей и другие данные CLI.
+config_dir: "~/.config/practiceraptor"
+
+# Имя файла для хранения информации о текущей сессии (например, аутентифицированного пользователя)
+session_token_file: "session.token"
