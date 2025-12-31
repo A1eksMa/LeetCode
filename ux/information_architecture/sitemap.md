@@ -27,7 +27,7 @@ PracticeRaptor
 │   ├── Community Solutions
 │   └── Начать решать → [Solution]
 │
-├── Решение Задачи (Solution)
+├── Решение задачи (Solution)
 │   ├── Редактор кода
 │   ├── Выбор языка программирования
 │   ├── Получить подсказку (Hint)
@@ -107,6 +107,7 @@ Welcome to PracticeRaptor!
 | Раздел | CLI | Telegram | Web |
 |--------|-----|----------|-----|
 | Список задач | `list` | кнопка "Задачи" | меню / клик на лого |
+| Решение задачи | `solve` | кнопка "Решение" | меню |
 | Профиль | `profile` | кнопка "Профиль" | меню |
 | Настройки | `config` | кнопка "⚙️" | меню |
 | Помощь | `help` | `/help` | footer / ? |
@@ -125,26 +126,25 @@ flowchart TD
     LIST -->|случайная| DETAILS
     LIST -->|фильтры| LIST
 
-    DETAILS -->|начать решать| SOLVE[Solve Task]
-    DETAILS -->|подсказка| HINT[Hint]
     DETAILS -->|editorial| EDITORIAL[Editorial]
     DETAILS -->|community| COMMUNITY[Community Solutions]
     DETAILS -->|назад| LIST
+    DETAILS -->|начать решать| SOLVE[Solution]
 
-    HINT --> DETAILS
     EDITORIAL --> DETAILS
     COMMUNITY --> DETAILS
 
     SOLVE -->|быстрая проверка| SOLVE
+    SOLVE -->|подсказка| HINT[Hint]
     SOLVE -->|полная проверка| RESULT{Результат}
     SOLVE -->|отмена| DETAILS
+
+    HINT --> SOLVE
 
     RESULT -->|Accepted| SUBMISSION[Submission]
     RESULT -->|Error/Wrong| SOLVE
 
     SUBMISSION -->|к списку| LIST
-    SUBMISSION -->|в профиль| PROFILE[Профиль]
-    SUBMISSION -->|в настройки| SETTINGS[Настройки]
 ```
 
 ### 6.2. Глобальная навигация
@@ -153,11 +153,14 @@ flowchart TD
 flowchart LR
     subgraph GLOBAL[Глобальная навигация]
         LIST[Список задач]
+        SOLVE[Solution]
         PROFILE[Профиль]
         SETTINGS[Настройки]
+
     end
 
-    LIST <-.->|всегда доступно| PROFILE
+    LIST <-.->|всегда доступно| SOLVE
+    SOLVE <-.->|всегда доступно| PROFILE
     PROFILE <-.->|всегда доступно| SETTINGS
     SETTINGS <-.->|всегда доступно| LIST
 ```
@@ -168,22 +171,23 @@ flowchart LR
 flowchart TB
     subgraph DETAILS_CTX[Из Деталей задачи]
         D1[Начать решать]
-        D2[Подсказка]
-        D3[Editorial]
-        D4[Community Solutions]
-        D5[Назад к списку]
+        D2[Editorial]
+        D3[Community Solutions]
+        D4[Назад к списку]
     end
 
     subgraph SOLVE_CTX[Из Solve Task]
         S1[Быстрая проверка]
         S2[Полная проверка]
         S3[Отмена → Детали]
+        S4[Подсказка]
     end
 
     subgraph SUBMISSION_CTX[Из Submission]
         SUB1[К списку задач]
         SUB2[В профиль]
         SUB3[В настройки]
+        SUB[Назад к решению]
     end
 
     subgraph PROFILE_CTX[Из Профиля]
