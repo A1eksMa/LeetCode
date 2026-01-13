@@ -359,7 +359,6 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
 | user_name | string | Username (unique) |
 | hash_password | string | Hashed password (bcrypt) |
 | email | string | Email (unique) |
-| created_at | timestamp | Registration date |
 
 **Example:**
 ```json
@@ -367,8 +366,7 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
   "user_id": 1,
   "user_name": "alexei",
   "hash_password": "$2b$12$...",
-  "email": "alexei@example.com",
-  "created_at": "2024-01-15T10:30:00Z"
+  "email": "alexei@example.com"
 }
 ```
 
@@ -685,8 +683,7 @@ CREATE TABLE users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_name TEXT NOT NULL UNIQUE,
     hash_password TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    email TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE submissions (

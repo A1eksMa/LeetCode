@@ -3,14 +3,12 @@
     "user_id": 1,
     "user_name": "alexei",
     "hash_password": "$2b$12$KIXqF.x5fHJZ5vZ.4vZ5qeH5KqF5vZ5qeH5KqF5vZ5qeH5KqF5vZ5q",
-    "email": "alexei@example.com",
-    "created_at": "2024-01-15T10:30:00Z"
+    "email": "alexei@example.com"
   },
   {
     "user_id": 2,
     "user_name": "demo_user",
     "hash_password": "$2b$12$DEMO.HASH.FOR.TESTING.PURPOSES.ONLY.DO.NOT.USE.IN.PRODUCTION",
-    "email": "demo@practiceraptor.dev",
-    "created_at": "2024-01-10T08:00:00Z"
+    "email": "demo@practiceraptor.dev"
   }
 ]

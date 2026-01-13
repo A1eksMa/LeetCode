@@ -23,8 +23,13 @@ class Execution:
     """Result of executing solution against test cases.
 
     Contains aggregated results of running all tests.
+    Personalized to a specific user (user_id).
+
+    Note: Execution results are not stored directly.
+    To persist, wrap in Submission.
     """
 
+    user_id: int
     solution: Solution
     total_time_ms: int = 0
     memory_used_kb: int = 0

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from .enums import ProgrammingLanguage
+from .enums import Complexity, ProgrammingLanguage
 
 
 @dataclass(frozen=True)
@@ -24,10 +24,25 @@ class CanonicalSolution:
 
     Represents an official/canonical solution that can be shown
     to user after they solve the problem or request help.
+
+    Multiple solutions per problem are supported (different approaches).
+
+    Example:
+        CanonicalSolution(
+            canonical_solution_id=1,
+            problem_id=1,
+            programming_language=ProgrammingLanguage.PYTHON,
+            name="Hash Map (One Pass)",
+            complexity=Complexity.O_N,
+            canonical_solution="def two_sum(...):\\n    ..."
+        )
     """
 
+    canonical_solution_id: int
     problem_id: int
     programming_language: ProgrammingLanguage
+    name: str
+    complexity: Complexity
     canonical_solution: str = ""
 
 
@@ -94,8 +109,16 @@ class Draft:
 
     Created on events: code check, program exit, manual save.
     Enables auto-save functionality and session recovery.
+
+    Unique constraint: (user_id, problem_id, programming_language)
+    Only one draft per user per problem per language.
+
+    Note: Serialized to flat JSON for storage, but uses
+    nested Solution in runtime for convenience.
     """
 
+    draft_id: int
+    user_id: int
     solution: Solution
     created_at: datetime
     updated_at: datetime
