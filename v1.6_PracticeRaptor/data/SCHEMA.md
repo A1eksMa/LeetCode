@@ -90,7 +90,7 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
          │  │      SUBMISSIONS (Source of Truth)           │
          │  ├──────────────────────────────────────────────┤
          └─►│  submissions (user_id, problem_id, code)     │
-            │              (successful solutions only)     │
+            │              (all execution results)         │
             │              execution_time, memory, etc.    │
             │                                              │
             │  Stats computed from this table:             │
@@ -446,7 +446,7 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
 ---
 
 #### 17. `submissions/submissions.json`
-**Purpose:** Successful solutions (source of truth for statistics)
+**Purpose:** All submission results (source of truth for statistics)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -476,9 +476,9 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
 ```
 
 **Important:**
-- Only successful (accepted) submissions are stored
-- Failed attempts are NOT stored (no separate attempts table)
-- Multiple submissions per (user, problem) allowed (different languages, improvements)
+- All submissions are stored (accepted, wrong_answer, timeout, etc.)
+- User statistics are computed from accepted submissions only
+- Multiple submissions per (user, problem) allowed (different languages, retries)
 
 ---
 
@@ -491,7 +491,7 @@ This document describes the normalized data structure for PracticeRaptor v1.6. T
 -- Is problem solved?
 SELECT COUNT(*) > 0 as is_solved
 FROM submissions
-WHERE user_id = ? AND problem_id = ?
+WHERE user_id = ? AND problem_id = ? AND result = 'accepted'
 ```
 
 ### Languages Solved
@@ -499,7 +499,7 @@ WHERE user_id = ? AND problem_id = ?
 -- Which languages did user solve problem in?
 SELECT DISTINCT programming_language
 FROM submissions
-WHERE user_id = ? AND problem_id = ?
+WHERE user_id = ? AND problem_id = ? AND result = 'accepted'
 ```
 
 ### Total Solved Count
@@ -507,7 +507,7 @@ WHERE user_id = ? AND problem_id = ?
 -- How many problems has user solved?
 SELECT COUNT(DISTINCT problem_id)
 FROM submissions
-WHERE user_id = ?
+WHERE user_id = ? AND result = 'accepted'
 ```
 
 ### Solved by Difficulty
@@ -516,24 +516,24 @@ WHERE user_id = ?
 SELECT ps.difficulty, COUNT(DISTINCT s.problem_id) as count
 FROM submissions s
 JOIN problem_selectors ps ON s.problem_id = ps.problem_id
-WHERE s.user_id = ?
+WHERE s.user_id = ? AND s.result = 'accepted'
 GROUP BY ps.difficulty
 ```
 
 ### Best Time/Memory
 ```sql
--- Best performance for a problem
+-- Best performance for a problem (accepted only)
 SELECT MIN(total_time_ms) as best_time, MIN(memory_used_kb) as best_memory
 FROM submissions
-WHERE user_id = ? AND problem_id = ?
+WHERE user_id = ? AND problem_id = ? AND result = 'accepted'
 ```
 
 ### Streak Calculation
 ```sql
--- Days with at least one submission
+-- Days with at least one accepted submission
 SELECT DATE(created_at) as date
 FROM submissions
-WHERE user_id = ?
+WHERE user_id = ? AND result = 'accepted'
 GROUP BY DATE(created_at)
 ORDER BY date DESC
 ```
@@ -742,7 +742,7 @@ v1.6_PracticeRaptor/data/
 │   └── drafts.json                     # Auto-saved code
 │
 └── submissions/
-    └── submissions.json                # Successful solutions (stats source)
+    └── submissions.json                # All submissions (stats source)
 ```
 
 **Total:** 17 tables (JSON files)
@@ -788,7 +788,6 @@ v1.6_PracticeRaptor/data/
 
 **Trade-off:**
 - Slightly slower stats queries
-- But: submissions table is small (only successful solutions)
 - Caching layer can be added later if needed
 
 ### 4. Why Executable Test Code?

@@ -57,10 +57,10 @@ class Execution:
 
 @dataclass(frozen=True)
 class Submission:
-    """Successful submission record.
+    """Submission record (any execution result).
 
-    Only accepted submissions are stored.
-    Statistics are computed from submissions table.
+    All submissions are stored (accepted, wrong_answer, timeout, etc.).
+    User statistics are computed from accepted submissions only.
     """
 
     submission_id: int
