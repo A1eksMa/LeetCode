@@ -16,5 +16,5 @@ class UserRecord:
     """
 
     user_id: int = 0
-    user_name: str = ""
+    user_name: str = "guest"
     hash_password: str = ""
