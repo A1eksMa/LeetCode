@@ -17,6 +17,14 @@ class ProgrammingLanguage(str, Enum):
     JAVA = "java"
 
 
+class TextEditor(str, Enum):
+    """Preferred text editor for code editing."""
+
+    DEFAULT = "default"
+    NANO = "nano"
+    VIM = "vim"
+
+
 class Difficulty(str, Enum):
     """Problem difficulty level."""
 

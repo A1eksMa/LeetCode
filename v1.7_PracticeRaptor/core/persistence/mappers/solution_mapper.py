@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from core.domain.enums import Complexity, ProgrammingLanguage
-from core.domain.solution import CanonicalSolution, Signature, Solution, TestCase
+from core.models.domain.enums import Complexity, ProgrammingLanguage
+from core.models.domain.solution import CanonicalSolution, Signature, Solution, TestCase
 
 from ..records.solution_records import (
     CanonicalSolutionRecord,

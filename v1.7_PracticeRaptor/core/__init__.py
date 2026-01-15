@@ -1,1 +1,1 @@
-"""PracticeRaptor Core - Domain and Persistence layers."""
+"""PracticeRaptor Core - Models, Persistence, Ports, and Services layers."""

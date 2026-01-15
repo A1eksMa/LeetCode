@@ -2,8 +2,8 @@
 
 from typing import Protocol
 
-from core.domain.problem import Problem, ProblemSummary
-from core.domain.enums import Difficulty, Category, ProblemStatus
+from core.models.domain.problem import Problem, ProblemSummary
+from core.models.domain.enums import Difficulty, Category, ProblemStatus
 
 
 class IProblemRepository(Protocol):

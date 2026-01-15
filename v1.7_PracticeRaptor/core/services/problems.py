@@ -7,8 +7,8 @@ Each function receives dependencies as parameters (DI).
 import random
 from dataclasses import dataclass
 
-from core.domain.enums import Category, Difficulty, ProblemStatus
-from core.domain.problem import Problem, ProblemSummary
+from core.models.domain.enums import Category, Difficulty, ProblemStatus
+from core.models.domain.problem import Problem, ProblemSummary
 from core.ports.repositories import IProblemRepository
 
 

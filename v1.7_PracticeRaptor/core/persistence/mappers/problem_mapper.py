@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from core.domain.enums import (
+from core.models.domain.enums import (
     Category,
     Complexity,
     Difficulty,
@@ -10,8 +10,8 @@ from core.domain.enums import (
     ProblemStatus,
     ProgrammingLanguage,
 )
-from core.domain.localization import LocalizedText
-from core.domain.problem import Example, Problem, ProblemSummary
+from core.models.domain.localization import LocalizedText
+from core.models.domain.problem import Example, Problem, ProblemSummary
 
 from ..records.problem_records import (
     EditorialRecord,
