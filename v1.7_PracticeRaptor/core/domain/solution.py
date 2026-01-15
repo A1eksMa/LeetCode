@@ -14,14 +14,12 @@ class Signature:
     Example:
         sig = Signature(
             language=ProgrammingLanguage.PYTHON,
-            template="def two_sum(nums: list[int], target: int) -> list[int]:",
-            function_name="two_sum",
+            signature="def two_sum(nums: list[int], target: int) -> list[int]:",
         )
     """
 
     language: ProgrammingLanguage
-    template: str
-    function_name: str
+    signature: str
 
 
 @dataclass(frozen=True)
@@ -34,13 +32,13 @@ class TestCase:
     Example:
         test = TestCase(
             language=ProgrammingLanguage.PYTHON,
-            code="assert two_sum([2, 7, 11, 15], 9) == [0, 1]",
+            test="assert two_sum([2, 7, 11, 15], 9) == [0, 1]",
             is_example=True,
         )
     """
 
     language: ProgrammingLanguage
-    code: str
+    test: str
     is_example: bool = False  # True = shown in problem description
 
 
@@ -111,10 +109,6 @@ class Solution:
         """Get only hidden test cases."""
         return tuple(t for t in self.test_cases if not t.is_example)
 
-    @property
-    def function_name(self) -> str:
-        """Get function name from signature."""
-        return self.signature.function_name
 
     def with_code(self, code: str) -> "Solution":
         """Return new Solution with updated code."""
