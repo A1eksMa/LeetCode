@@ -14,13 +14,11 @@ class User:
     user_id: int = 0
     user_name: str = ""
     hash_password: str = ""
-    email: str = ""
 
 
-# Default user for CLI anonymous mode
+# Default user
 DEFAULT_USER = User(
     user_id=0,
-    user_name="anonymous",
+    user_name="guest",
     hash_password="",
-    email="",
 )
