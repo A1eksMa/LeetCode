@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from .enums import Category, Complexity, Difficulty, ProblemStatus, ProgrammingLanguage
+from .enums import Category, Complexity, Difficulty, ProblemStatus, Language, ProgrammingLanguage
 from .localization import LocalizedText
 
 
@@ -20,18 +20,16 @@ class Example:
 
 @dataclass(frozen=True)
 class ProblemSummary:
-    """Lightweight problem data for list display.
-
-    Used when showing problem list - contains only
-    essential data needed for filtering and display.
-    Title is already resolved to user's locale.
-    """
+    """Lightweight problem data for list display."""
 
     id: int
-    title: str  # Already localized (not LocalizedText)
+    title: LocalizedText
     difficulty: Difficulty
+    complexity: Complexity
     categories: tuple[Category, ...]
     tags: tuple[str, ...]
+    supported_languages: tuple[Language, ...] = ()
+    supported_programming_languages: tuple[ProgrammingLanguage, ...] = ()
     status: ProblemStatus = ProblemStatus.NOT_STARTED
 
 
@@ -42,31 +40,6 @@ class Problem:
     Rich domain model with nested objects.
     Loaded when user views a specific problem.
 
-    Example:
-        problem = Problem(
-            id=1,
-            title=LocalizedText({"en": "Two Sum", "ru": "Два числа"}),
-            description=LocalizedText({"en": "Given an array..."}),
-            difficulty=Difficulty.EASY,
-            complexity=Complexity.O_N,
-            categories=(Category.ARRAY, Category.HASH_TABLE),
-            tags=("array", "hash-table"),
-            examples=(
-                Example(
-                    input="nums = [2,7,11,15], target = 9",
-                    output="[0, 1]",
-                    explanation=LocalizedText({"en": "Because nums[0] + nums[1] == 9"})
-                ),
-            ),
-            hints=(
-                LocalizedText({"en": "Try using a hash map"}),
-            ),
-            supported_languages=(ProgrammingLanguage.PYTHON, ProgrammingLanguage.JAVA),
-        )
-
-        # Usage:
-        print(problem.title.get("ru"))  # "Два числа"
-        print(problem.examples[0].input)  # "nums = [2,7,11,15], target = 9"
     """
 
     id: int
@@ -79,8 +52,8 @@ class Problem:
     examples: tuple[Example, ...] = ()
     hints: tuple[LocalizedText, ...] = ()
     editorial: LocalizedText = field(default_factory=LocalizedText)
-    supported_languages: tuple[ProgrammingLanguage, ...] = ()
-    status: ProblemStatus = ProblemStatus.NOT_STARTED
+    supported_languages: tuple[Language, ...] = ()
+    supported_programming_languages: tuple[ProgrammingLanguage, ...] = ()
 
     def get_title(self, locale: str = "en") -> str:
         """Get title in specified locale."""
@@ -90,17 +63,24 @@ class Problem:
         """Get description in specified locale."""
         return self.description.get(locale)
 
-    def supports_language(self, lang: ProgrammingLanguage) -> bool:
+    def supports_programming_language(self, lang: ProgrammingLanguage) -> bool:
         """Check if problem supports given programming language."""
+        return lang in self.supported_programming_languages
+
+    def supports_language(self, lang: Language) -> bool:
+        """Check if problem supports given language."""
         return lang in self.supported_languages
 
-    def to_summary(self, locale: str = "en") -> ProblemSummary:
+    def to_summary(self) -> ProblemSummary:
         """Convert to lightweight summary for list display."""
         return ProblemSummary(
             id=self.id,
             title=self.title.get(locale),
             difficulty=self.difficulty,
+            complexity=self.complexity,
             categories=self.categories,
             tags=self.tags,
-            status=self.status,
+            supported_languages=self.supported_languages,
+            supported_programming_languages=self.supported_programming_languages,
+            status=ProblemStatus.NOT_STARTED,
         )
