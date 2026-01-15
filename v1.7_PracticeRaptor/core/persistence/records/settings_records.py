@@ -15,12 +15,12 @@ class SettingsRecord:
     Primary key: user_id
     """
 
-    user_id: int  # References UserRecord.user_id
+    user_id: int = 0 # References UserRecord.user_id
 
     # Persistent preferences
-    language: str  # e.g., "en", "ru"
-    programming_language: str  # e.g., "python3", "java"
-    text_editor: str  # e.g., "default", "vim"
+    language: str = "en" # e.g., "en", "ru"
+    programming_language: str = "python3"  # e.g., "python3", "java"
+    text_editor: str = "default" # e.g., "default", "vim"
 
     # Current session state (filters)
     select_problem_id: int | None = None
